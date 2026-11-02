@@ -11,11 +11,18 @@ const ROWS = [
   { k: 'latency_ms', label: 'Inference latency (ms / decision)', unit: '', mult: 1, dp: 2, better: 'low' },
 ]
 
+// mean of the per-seed checkpoint episodes; runs made before checkpoint selection have none
+const selectedEpisode = (s) => {
+  const v = (s.best_episode?.per_seed ?? []).filter((x) => x != null)
+  return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null
+}
+
 export default function Results({ summary }) {
   const best = (r) => {
     const vals = AGENTS.map((a) => summary[a.id][r.k].mean)
     return r.better === 'high' ? Math.max(...vals) : Math.min(...vals)
   }
+  const adv = summary.llm_cnn_lstm.success.per_seed.map((v) => Math.round(v * 100))
   return (
     <div className="stack">
       <section className="card">
@@ -23,14 +30,14 @@ export default function Results({ summary }) {
         <div className="table-wrap">
           <table className="tbl">
             <thead>
-              <tr><th>Metric</th>{AGENTS.map((a) => <th key={a.id} style={{ color: a.color }}>{a.short}</th>)}</tr>
+              <tr><th scope="col">Metric</th>{AGENTS.map((a) => <th scope="col" key={a.id} style={{ color: a.color }}>{a.short}</th>)}</tr>
             </thead>
             <tbody>
               {ROWS.map((r) => {
                 const b = best(r)
                 return (
                   <tr key={r.k}>
-                    <td>{r.label}</td>
+                    <th scope="row" className="rowhead">{r.label}</th>
                     {AGENTS.map((a) => {
                       const s = summary[a.id][r.k]
                       const isBest = Math.abs(s.mean - b) < 1e-9
@@ -45,17 +52,24 @@ export default function Results({ summary }) {
                 )
               })}
               <tr>
-                <td>Model parameters</td>
+                <th scope="row" className="rowhead">Selected checkpoint (episode)</th>
+                {AGENTS.map((a) => {
+                  const e = selectedEpisode(summary[a.id])
+                  return <td key={a.id} className="mono">{e ?? '–'}</td>
+                })}
+              </tr>
+              <tr>
+                <th scope="row" className="rowhead">Model parameters</th>
                 {AGENTS.map((a) => <td key={a.id} className="mono">{summary[a.id].params.toLocaleString()}</td>)}
               </tr>
               <tr>
-                <td>Training time (min / run)</td>
+                <th scope="row" className="rowhead">Training time (min / run)</th>
                 {AGENTS.map((a) => <td key={a.id} className="mono">{(summary[a.id].train_seconds / 60).toFixed(1)}</td>)}
               </tr>
             </tbody>
           </table>
         </div>
-        <p className="dim small">Highlighted cell = best agent on that metric.</p>
+        <p className="dim small">Highlighted cell = best agent on that metric. “–” = run trained before checkpoint selection existed.</p>
       </section>
 
       <section className="card">
@@ -66,7 +80,7 @@ export default function Results({ summary }) {
             return (
               <div key={a.id} className="barrow">
                 <span className="barname">{a.short}</span>
-                <div className="bartrack">
+                <div className="bartrack" role="img" aria-label={`${a.name}: ${(s.mean * 100).toFixed(1)}% mean success`}>
                   <div className="barfill" style={{ width: `${s.mean * 100}%`, background: a.color }} />
                   {s.per_seed.map((v, i) => <span key={i} className="seeddot" style={{ left: `${v * 100}%` }} title={`seed ${i}: ${(v * 100).toFixed(1)}%`} />)}
                 </div>
@@ -75,15 +89,15 @@ export default function Results({ summary }) {
             )
           })}
         </div>
-        <p className="dim small">White dots are individual seeds. The LLM-guided agent varies a lot between seeds (13% to 41%), so its improvement over CNN-LSTM is suggestive, not established.</p>
+        <p className="dim small">White dots are individual seeds. The advisory-guided agent varies a lot between seeds ({Math.min(...adv)}% to {Math.max(...adv)}%), so its improvement over CNN-LSTM is suggestive, not established.</p>
       </section>
 
       <section className="card">
         <h3>How to read this</h3>
         <ul className="plain">
           <li>The <b>simple baseline wins</b> in this compute budget. It gets explicit goal-relative coordinates and learns fastest. The image and recurrent agents were still improving when training stopped at 2000 episodes, so their numbers are a lower bound.</li>
-          <li><b>LLM guidance helped the recurrent agent</b> (about 10% to 26% success), but dose and dose-limit failures did not improve.</li>
-          <li>The <b>LLM is a stand-in</b>: a deterministic parser of the advisory text, not a real language model. Its latency is the parser's, not an LLM's.</li>
+          <li><b>Advisory features helped the recurrent agent</b> (about 10% to 26% success), but dose and dose-limit failures did not improve.</li>
+          <li>The <b>advisory parser is a stand-in</b> for an LLM: a deterministic parser of the advisory text, not a real language model. Its latency is the parser's, not an LLM's.</li>
           <li>Safety shield is identical for all agents and cannot be overridden. Dose-limit failures come from accumulated dose on longer routes, which the shield does not prevent.</li>
         </ul>
       </section>

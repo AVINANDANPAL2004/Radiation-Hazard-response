@@ -10,7 +10,7 @@ Endpoints
   GET /api/curves                      learning curves (mean/std over seeds)
 
 SIMULATION ONLY. The language component is a rule-based advisory parser, not a real LLM.
-The safety shield is applied inside the environment loop and cannot be bypassed by any agent.
+The safety shield is enforced in RadiationZoneEnv.step(): a disallowed action is replaced by wait.
 """
 import glob, json, os, time
 from functools import lru_cache
@@ -28,6 +28,9 @@ import train as T
 
 torch.set_num_threads(1)
 HERE = os.path.dirname(os.path.abspath(__file__))
+# choose a run with env vars, e.g. RAD_MODELS_DIR=models_v2 RAD_RESULTS_DIR=results_v2 (relative to this folder)
+MODELS_DIR = os.path.join(HERE, os.environ.get("RAD_MODELS_DIR", "models"))
+RESULTS_DIR = os.path.join(HERE, os.environ.get("RAD_RESULTS_DIR", "results"))
 ORDER = ["baseline", "cnn", "cnn_lstm", "llm_cnn_lstm"]
 MAX_SEED = 2 ** 31 - 1
 
@@ -38,17 +41,17 @@ app.add_middleware(CORSMiddleware, allow_origins=["http://localhost:5173", "http
 
 def model_seeds():
     return sorted({int(os.path.basename(p).split("seed")[1].split(".")[0])
-                   for p in glob.glob(f"{HERE}/models/*_seed*.pt")})
+                   for p in glob.glob(f"{MODELS_DIR}/*_seed*.pt")})
 
 
 @lru_cache(maxsize=16)
 def load_model(agent, model_seed):
-    path = f"{HERE}/models/{agent}_seed{model_seed}.pt"
+    path = f"{MODELS_DIR}/{agent}_seed{model_seed}.pt"
     if not os.path.exists(path):
         raise HTTPException(404, f"No trained model for {agent} seed {model_seed}")
     cfg = T.AGENTS[agent]
     net = QNet(cfg["kind"])
-    net.load_state_dict(torch.load(path, map_location="cpu"))
+    net.load_state_dict(torch.load(path, map_location="cpu", weights_only=True))
     net.eval()
     return net, cfg
 
@@ -66,7 +69,7 @@ def scenario_payload(seed):
     rates, sources = [], []
     for _ in range(MAX_STEPS + 1):
         rates.append(_r(env.rate.flatten()))
-        sources.append([[int(s[0]), int(s[1]), round(s[2], 1)] for s in env.sources])
+        sources.append([[int(s[0]), int(s[1]), round(s[2], 1), [int(s[3][0]), int(s[3][1])]] for s in env.sources])
         env._drift()
     return dict(seed=seed, walls=env.walls.astype(int).flatten().tolist(), start=list(env.start),
                 goal=list(env.goal), rates=rates, sources=sources)
@@ -107,19 +110,25 @@ def _check(seed, model_seed):
 
 @app.get("/api/health")
 def health():
-    return dict(status="ok", agents=ORDER, model_seeds=model_seeds(), actions=ACTION_NAMES,
+    return dict(status="ok", run=os.path.basename(RESULTS_DIR), agents=ORDER, model_seeds=model_seeds(), actions=ACTION_NAMES,
                 eval_seeds=[T.EVAL_SEED0, T.EVAL_SEED0 + T.N_EVAL - 1], simulation_only=True)
 
 
-@app.get("/api/compare")
-def compare(seed: int = Query(T.EVAL_SEED0, ge=0, le=MAX_SEED), model_seed: int = Query(0, ge=0, le=99)):
-    _check(seed, model_seed)
+@lru_cache(maxsize=256)
+def _compare(seed, model_seed):
+    # Deterministic for a given (seed, model_seed), so memoise: repeat requests skip CPU inference.
     t0 = time.perf_counter()
     scen = dict(scenario_payload(seed))
     scen["runs"] = {a: rollout(a, seed, model_seed) for a in ORDER}
     scen["model_seed"] = model_seed
     scen["compute_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return scen
+
+
+@app.get("/api/compare")
+def compare(seed: int = Query(T.EVAL_SEED0, ge=0, le=MAX_SEED), model_seed: int = Query(0, ge=0, le=99)):
+    _check(seed, model_seed)
+    return _compare(seed, model_seed)
 
 
 @app.get("/api/episode")
@@ -130,8 +139,13 @@ def episode(agent: str, seed: int = Query(T.EVAL_SEED0, ge=0, le=MAX_SEED), mode
     return dict(scenario=scenario_payload(seed), agent=agent, run=rollout(agent, seed, model_seed))
 
 
+def _load_json(path):
+    with open(path) as f:
+        return json.load(f)
+
+
 def _results():
-    return {a: [json.load(open(f)) for f in sorted(glob.glob(f"{HERE}/results/{a}_seed*.json"))] for a in ORDER}
+    return {a: [_load_json(f) for f in sorted(glob.glob(f"{RESULTS_DIR}/{a}_seed*.json"))] for a in ORDER}
 
 
 def _ma(x, w=100):
@@ -151,6 +165,7 @@ def _summary():
                           per_seed=[float(f[k]) for f in fe]) for k in fe[0]}
         out[a]["params"] = R[a][0]["params"]
         out[a]["train_seconds"] = float(np.mean([r["train_seconds"] for r in R[a]]))
+        out[a]["best_episode"] = dict(per_seed=[r.get("best_episode") for r in R[a]])
     return out
 
 

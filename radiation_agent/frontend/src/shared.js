@@ -4,7 +4,7 @@ export const AGENTS = [
   { id: 'baseline', name: 'Baseline DRL', short: 'Baseline', color: '#9aa4b2', desc: 'MLP on sensor vector only' },
   { id: 'cnn', name: 'CNN-DRL', short: 'CNN', color: '#4da3ff', desc: 'CNN on facility image + sensors' },
   { id: 'cnn_lstm', name: 'CNN-LSTM-DRL', short: 'CNN-LSTM', color: '#43d17a', desc: 'Adds LSTM memory over 4 frames' },
-  { id: 'llm_cnn_lstm', name: 'LLM-guided CNN-LSTM-DRL', short: 'LLM-guided', color: '#ff6b5e', desc: 'Adds parsed advisory features' },
+  { id: 'llm_cnn_lstm', name: 'Advisory-guided CNN-LSTM-DRL', short: 'Advisory', color: '#ff6b5e', desc: 'Adds features parsed from text advisories (rule-based parser)' },
 ]
 export const AGENT = Object.fromEntries(AGENTS.map((a) => [a.id, a]))
 export const N = 10
@@ -72,19 +72,16 @@ export function useClock(maxT, resetKey) {
     setPlaying(false)
   }, [resetKey])
 
+  // advance the clock; state updaters stay pure and the stop-at-end check lives in an effect
   useEffect(() => {
     if (!playing) return
-    const id = setInterval(() => {
-      setT((x) => {
-        if (x >= maxRef.current) {
-          setPlaying(false)
-          return x
-        }
-        return x + 1
-      })
-    }, 1000 / speed)
+    const id = setInterval(() => setT((x) => Math.min(x + 1, maxRef.current)), 1000 / speed)
     return () => clearInterval(id)
   }, [playing, speed])
+
+  useEffect(() => {
+    if (playing && t >= maxRef.current) setPlaying(false)
+  }, [t, playing])
 
   const toggle = () => {
     if (!playing && t >= maxRef.current) setT(0)

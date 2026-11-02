@@ -2,6 +2,7 @@ import React from 'react'
 
 // series: [{name,color,x[],mean[],std[]}]
 export default function LineChart({ series, yLabel, yMin, yMax, height = 260, pct = false }) {
+  if (!series.length) return <p className="dim small">Select at least one agent to plot.</p>
   const W = 600, H = height, m = { l: 46, r: 12, t: 10, b: 30 }
   const xs = series.flatMap((s) => s.x)
   const xMax = Math.max(...xs)

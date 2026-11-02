@@ -134,9 +134,38 @@ footer { margin-top: 24px; text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
-  animate { display: none; }
+  .skeleton { animation: none !important; }
 }
 
 /* scenario picker */
 .picker .status { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; margin-left: auto; }
 .num { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font: inherit; font-family: var(--mono); width: 130px; }
+
+/* ---- refinements: map overlays, legends, loading state ---- */
+.toggles { justify-content: flex-end; }
+.chip:hover { border-color: #3a4656; color: var(--text); }
+.chip[aria-pressed="true"] { border-color: var(--accent); color: var(--text); }
+.legend-block { display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+.dose-legend { display: flex; align-items: center; gap: 8px; }
+.dose-bar { flex: 1; max-width: 280px; height: 10px; border-radius: 5px; border: 1px solid var(--line); }
+.legend { gap: 8px 16px; }
+.legend .key { display: inline-flex; align-items: center; gap: 6px; }
+.key-swatch { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
+.key-swatch.dash { border: 1px dashed #8b97a8; }
+.key-swatch.block { background: rgba(255, 107, 94, 0.15); border: 1px dashed #ff6b5e; }
+.kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--panel2); color: var(--text); }
+.kbd-hint { margin: 0; }
+.rowhead { font-weight: 500; color: var(--text); }
+.tbl th[scope="row"] { font-weight: 500; }
+.skeleton { background: linear-gradient(90deg, var(--panel2) 25%, #232c39 37%, var(--panel2) 63%); background-size: 400% 100%; animation: shimmer 1.4s ease-in-out infinite; border-radius: 10px; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.skel-tile { height: 200px; }
+@keyframes shimmer { from { background-position: 100% 50%; } to { background-position: 0 50%; } }
+@media (max-width: 560px) {
+  .skeleton-grid { grid-template-columns: 1fr 1fr; }
+  .toggles { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+  .expo-fill, .qbar div { transition: none; }
+}

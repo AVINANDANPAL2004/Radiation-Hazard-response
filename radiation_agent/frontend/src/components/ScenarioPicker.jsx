@@ -5,10 +5,12 @@ const PRESETS = Array.from({ length: 16 }, (_, i) => EVAL_SEED0 + i)
 
 export default function ScenarioPicker({ seed, modelSeed, modelSeeds, onChange, loading, computeMs, error }) {
   const [text, setText] = useState(String(seed))
+  const [err, setErr] = useState(null)
   const submit = (e) => {
     e.preventDefault()
     const v = Number(text)
-    if (Number.isInteger(v) && v >= 0 && v <= 2147483647) onChange({ seed: v, modelSeed })
+    if (Number.isInteger(v) && v >= 0 && v <= 2147483647) { setErr(null); onChange({ seed: v, modelSeed }) }
+    else setErr('Enter a whole number from 0 to 2147483647.')
   }
   const random = () => {
     const v = Math.floor(Math.random() * 1_000_000_000)
@@ -32,6 +34,7 @@ export default function ScenarioPicker({ seed, modelSeed, modelSeeds, onChange, 
             <button className="btn" type="submit">Run</button>
             <button className="btn" type="button" onClick={random}>🎲 Random</button>
           </div>
+          {err && <span className="badge bad">{err}</span>}
         </form>
         <label className="field">
           <span className="dim">Trained model (training seed)</span>
