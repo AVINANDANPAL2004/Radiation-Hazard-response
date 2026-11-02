@@ -53,7 +53,10 @@ export default function App() {
           <h1><span className="rad">☢</span> Radiation-Zone Autonomous Agent</h1>
           <p className="dim">CNN + LSTM + advisory parser + Double DQN · navigating a drifting radiation field</p>
         </div>
-        <span className="badge sim">SIMULATION ONLY</span>
+        <div className="row wrap">
+          {meta?.run && <span className="badge mono" title="Results and models currently served">run · {meta.run}</span>}
+          <span className="badge sim">SIMULATION ONLY</span>
+        </div>
       </header>
 
       <nav className="tabs" role="tablist">
@@ -79,7 +82,12 @@ export default function App() {
               onChange={run} loading={loading} computeMs={scen?.compute_ms} error={scenErr} />
             {scen && tab === 'replay' && <Replay scen={scen} />}
             {scen && tab === 'compare' && <Compare scen={scen} />}
-            {!scen && !scenErr && <div className="card dim">Running the agents…</div>}
+            {!scen && !scenErr && (
+              <section className="card" aria-busy="true" aria-label="Running the agents">
+                <div className="skeleton-grid">{[0, 1, 2, 3].map((i) => <div key={i} className="skeleton skel-tile" />)}</div>
+                <p className="dim small" style={{ marginTop: 10 }}>Running the four agents on this scenario…</p>
+              </section>
+            )}
           </div>
         )}
         {stats && tab === 'results' && <Results summary={stats.summary} />}

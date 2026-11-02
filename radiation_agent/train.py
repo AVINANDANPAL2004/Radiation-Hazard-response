@@ -21,7 +21,7 @@ AGENTS = {
 GAMMA, LR, BATCH = 0.98, 7e-4, 64
 UPDATE_EVERY, TARGET_SYNC, WARMUP, BUF_EPISODES = 2, 300, 600, 500
 TRAIN_SEED0, EVAL_SEED0, CKPT_SEED0 = 1_000_000, 500_000, 400_000
-N_EVAL, N_CKPT = 200, 20
+N_EVAL, N_CKPT = 200, 50   # validation scenarios: 50 (was 20; less selection noise)
 
 
 class FrameBuilder:
@@ -84,7 +84,8 @@ def run_episode(env, net, fb, K, seed, eps, rng, measure=False):
     img, vec, mask = fb.build(env)
     imgs.append(img); vecs.append(vec); masks.append(mask)
     ep = dict(imgs=np.asarray(imgs, np.float32), vecs=np.asarray(vecs, np.float32),
-              masks=np.asarray(masks), acts=np.asarray(acts), rews=np.asarray(rews, np.float32))
+              masks=np.asarray(masks), acts=np.asarray(acts), rews=np.asarray(rews, np.float32),
+              term=info["outcome"] in ("success", "overdose"))  # timeouts are truncations, not terminals
     stats = dict(reward=float(sum(rews)), outcome=info["outcome"], exposure=float(env.exposure),
                  steps=len(acts), interventions=interventions, lat=lat)
     return ep, stats
@@ -120,7 +121,7 @@ def sample_batch(buf, K, rng):
         i0, v0 = window(ep["imgs"], ep["vecs"], t, K)
         i1, v1 = window(ep["imgs"], ep["vecs"], t + 1, K)
         wi.append(i0); wv.append(v0); ni.append(i1); nv.append(v1)
-        a.append(ep["acts"][t]); r.append(ep["rews"][t]); d.append(float(t == T - 1)); nm.append(ep["masks"][t + 1])
+        a.append(ep["acts"][t]); r.append(ep["rews"][t]); d.append(float(t == T - 1 and ep["term"])); nm.append(ep["masks"][t + 1])
     f = lambda x: torch.from_numpy(np.asarray(x, np.float32))
     return f(wi), f(wv), f(ni), f(nv), torch.from_numpy(np.asarray(a)).long(), f(r), f(d), torch.from_numpy(np.asarray(nm))
 
@@ -131,6 +132,7 @@ def main():
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--episodes", type=int, default=1500)
     ap.add_argument("--out", default="results")
+    ap.add_argument("--models", default="models")
     args = ap.parse_args()
     torch.set_num_threads(1)
     torch.manual_seed(args.seed)
@@ -138,7 +140,7 @@ def main():
     cfg = AGENTS[args.agent]
     K = cfg["K"]
     os.makedirs(args.out, exist_ok=True)
-    os.makedirs("models", exist_ok=True)
+    os.makedirs(args.models, exist_ok=True)
 
     env, fb = RadiationZoneEnv(), FrameBuilder(cfg["llm"])
     net = QNet(cfg["kind"]); tgt = copy.deepcopy(net)
@@ -152,6 +154,7 @@ def main():
     log = dict(agent=args.agent, seed=args.seed, episodes=args.episodes, params=n_params,
                train_reward=[], train_success=[], train_exposure=[], ckpt=[])
     steps = updates = 0
+    best_key, best_ep, best_state = (-1.0, -1e9), 0, None
     t_start = time.time()
     for e in range(args.episodes):
         eps = max(0.05, 1.0 - 0.95 * e / (0.6 * args.episodes))
@@ -179,12 +182,20 @@ def main():
         if (e + 1) % 100 == 0:
             ck = evaluate(env, net, fb, K, CKPT_SEED0, N_CKPT, rng)
             log["ckpt"].append(dict(episode=e + 1, success=ck["success"], reward=ck["reward"]))
+            # model selection uses the CKPT seeds only; the EVAL (test) seeds are never used for choosing
+            if (ck["success"], ck["reward"]) > best_key:
+                best_key, best_ep = (ck["success"], ck["reward"]), e + 1
+                best_state = copy.deepcopy(net.state_dict())
             print(f"[{args.agent} s{args.seed}] ep {e+1} eps={eps:.2f} "
                   f"train_succ={np.mean(log['train_success'][-100:]):.2f} "
                   f"eval_succ={ck['success']:.2f} t={time.time()-t_start:.0f}s", flush=True)
+    if best_state is None:  # fewer than 100 episodes: keep the final weights
+        best_state, best_ep = copy.deepcopy(net.state_dict()), args.episodes
+    net.load_state_dict(best_state)
+    log["best_episode"] = best_ep
     log["train_seconds"] = time.time() - t_start
     log["final_eval"] = evaluate(env, net, fb, K, EVAL_SEED0, N_EVAL, rng, measure=True)
-    torch.save(net.state_dict(), f"models/{args.agent}_seed{args.seed}.pt")
+    torch.save(net.state_dict(), f"{args.models}/{args.agent}_seed{args.seed}.pt")
     json.dump(log, open(f"{args.out}/{args.agent}_seed{args.seed}.json", "w"))
     print("FINAL", args.agent, args.seed, json.dumps(log["final_eval"]), flush=True)
 

@@ -1,5 +1,5 @@
 """Aggregate results: table (md + csv), learning curves, bar charts, trajectories."""
-import json, glob, os
+import json, glob, os, sys
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
@@ -10,11 +10,14 @@ from env import RadiationZoneEnv, N, LIMIT
 from models import QNet
 import train as T
 
+# python analyze.py        -> results/, models/, figures/ (v1)
+# python analyze.py v2     -> results_v2/, models_v2/, figures_v2/ (never overwrites v1)
+SFX = f"_{sys.argv[1]}" if len(sys.argv) > 1 else ""
 ORDER = ["baseline", "cnn", "cnn_lstm", "llm_cnn_lstm"]
 LABEL = {"baseline": "Baseline DRL", "cnn": "CNN-DRL", "cnn_lstm": "CNN-LSTM-DRL",
          "llm_cnn_lstm": "LLM-guided CNN-LSTM-DRL"}
 COL = {"baseline": "#7f7f7f", "cnn": "#1f77b4", "cnn_lstm": "#2ca02c", "llm_cnn_lstm": "#d62728"}
-os.makedirs("figures", exist_ok=True)
+os.makedirs(f"figures{SFX}", exist_ok=True)
 
 
 def ma(x, w=100):
@@ -38,7 +41,7 @@ def convergence_episode(succ, w=100):
     return float(idx[0] + 1) if len(idx) else float("nan")
 
 
-R = {a: [json.load(open(f)) for f in sorted(glob.glob(f"results/{a}_seed*.json"))] for a in ORDER}
+R = {a: [json.load(open(f)) for f in sorted(glob.glob(f"results{SFX}/{a}_seed*.json"))] for a in ORDER}
 R = {a: v for a, v in R.items() if v}
 
 metrics = [("success", "Success rate", 100, "%"), ("reward", "Mean eval reward", 1, ""),
@@ -69,8 +72,8 @@ keys = ["agent", "seeds", "success", "reward", "exposure", "overdose", "travel_s
 md = "| " + " | ".join(hdr) + " |\n|" + "---|" * len(hdr) + "\n"
 for r in rows:
     md += "| " + " | ".join(str(r[k]) for k in keys) + " |\n"
-open("results_table.md", "w").write(md)
-open("results.csv", "w").write("\n".join(csv))
+open(f"results_table{SFX}.md", "w").write(md)
+open(f"results{SFX}.csv", "w").write("\n".join(csv))
 print(md)
 
 # per-seed success (shows variance honestly)
@@ -94,7 +97,7 @@ for a in R:
     ax[2].fill_between(xc, C.mean(0) - C.std(0), C.mean(0) + C.std(0), color=COL[a], alpha=0.15)
 ax[2].set_title("Greedy success on 20 fixed held-out scenarios"); ax[2].set_xlabel("Episode")
 ax[0].legend(fontsize=8); [x.grid(alpha=0.3) for x in ax]
-plt.tight_layout(); plt.savefig("figures/learning_curves.png", dpi=140); plt.close()
+plt.tight_layout(); plt.savefig(f"figures{SFX}/learning_curves.png", dpi=140); plt.close()
 
 # --- bar charts of final metrics
 fig, ax = plt.subplots(1, 4, figsize=(16, 3.8))
@@ -104,12 +107,12 @@ for j, (k, name, mult, unit) in enumerate([m for m in metrics if m[0] in ("succe
     ax[j].bar(range(len(R)), mu, yerr=sd, color=[COL[a] for a in R], capsize=3)
     ax[j].set_xticks(range(len(R))); ax[j].set_xticklabels(["Base", "CNN", "CNN-LSTM", "LLM-CL"][:len(R)], fontsize=8)
     ax[j].set_title(name, fontsize=9); ax[j].grid(alpha=0.3, axis="y")
-plt.tight_layout(); plt.savefig("figures/final_metrics.png", dpi=140); plt.close()
+plt.tight_layout(); plt.savefig(f"figures{SFX}/final_metrics.png", dpi=140); plt.close()
 
 # --- trajectories on identical scenarios (seed-0 models)
 def load(a):
     cfg = T.AGENTS[a]
-    net = QNet(cfg["kind"]); net.load_state_dict(torch.load(f"models/{a}_seed0.pt")); net.eval()
+    net = QNet(cfg["kind"]); net.load_state_dict(torch.load(f"models{SFX}/{a}_seed0.pt")); net.eval()
     return net, T.FrameBuilder(cfg["llm"]), cfg["K"]
 
 def trace(a, seed):
@@ -125,7 +128,7 @@ def trace(a, seed):
         if done: break
     return env, path, info["outcome"]
 
-if all(os.path.exists(f"models/{a}_seed0.pt") for a in R):
+if all(os.path.exists(f"models{SFX}/{a}_seed0.pt") for a in R):
     seeds = [T.EVAL_SEED0 + i for i in (3, 11, 25)]
     fig, ax = plt.subplots(len(seeds), len(R), figsize=(3.6 * len(R), 3.6 * len(seeds)))
     for i, s in enumerate(seeds):
@@ -139,5 +142,5 @@ if all(os.path.exists(f"models/{a}_seed0.pt") for a in R):
             ax[i, j].set_title(f"{LABEL[a].replace('LLM-guided CNN-LSTM-DRL','LLM-CNN-LSTM')}\n{out}, dose {env.exposure:.2f}", fontsize=8)
             ax[i, j].set_xticks([]); ax[i, j].set_yticks([])
     plt.suptitle("Same scenario per row (final sources shown; blue = path, black = walls)", fontsize=9)
-    plt.tight_layout(); plt.savefig("figures/trajectories.png", dpi=130); plt.close()
+    plt.tight_layout(); plt.savefig(f"figures{SFX}/trajectories.png", dpi=130); plt.close()
 print("figures written")

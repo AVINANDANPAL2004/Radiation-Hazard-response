@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react'
-import Grid from './Grid.jsx'
+import Grid, { DoseLegend } from './Grid.jsx'
 import Controls from './Controls.jsx'
 import { AGENTS, AGENT, OUTCOME, ACTION_LABEL, LIMIT, useClock } from '../shared.js'
 
 const QUADS = ['north-west', 'north-east', 'south-west', 'south-east']
 const LEVEL = { strong: 1.0, moderate: 0.6, weak: 0.3 }
+const OVERLAYS = [['sense', 'Sensing window'], ['blocked', 'Shield blocks'], ['trail', 'Trail']]
 
 // mirrors advisory.py (rule-based stand-in for the LLM)
 export function parseAdvisory(text) {
@@ -19,7 +20,8 @@ export function ExposureBar({ value }) {
   const f = Math.min(1, value / LIMIT)
   const hue = 130 - 130 * f
   return (
-    <div className="expo" title={`Dose ${value.toFixed(2)} of ${LIMIT.toFixed(1)}`}>
+    <div className="expo" title={`Dose ${value.toFixed(2)} of ${LIMIT.toFixed(1)}`} role="meter"
+      aria-label="Accumulated dose" aria-valuemin={0} aria-valuemax={LIMIT} aria-valuenow={Math.min(value, LIMIT)}>
       <div className="expo-fill" style={{ width: `${f * 100}%`, background: `hsl(${hue} 80% 52%)` }} />
     </div>
   )
@@ -27,6 +29,7 @@ export function ExposureBar({ value }) {
 
 export default function Replay({ scen }) {
   const [aid, setAid] = useState('llm_cnn_lstm')
+  const [show, setShow] = useState({ sense: true, blocked: true, trail: true })
   const run = scen.runs[aid]
   const maxT = run.frames.length - 1
   const clock = useClock(maxT, `${scen.seed}-${scen.model_seed}-${aid}`)
@@ -44,7 +47,7 @@ export default function Replay({ scen }) {
   return (
     <div className="two-col">
       <section className="card map-card">
-        <div className="row wrap gap">
+        <div className="row wrap between gap">
           <div className="seg" role="tablist" aria-label="Agent">
             {AGENTS.map((g) => (
               <button key={g.id} role="tab" aria-selected={g.id === aid} className={g.id === aid ? 'on' : ''}
@@ -53,14 +56,29 @@ export default function Replay({ scen }) {
               </button>
             ))}
           </div>
+          <div className="row wrap toggles" role="group" aria-label="Map overlays">
+            {OVERLAYS.map(([k, label]) => (
+              <button key={k} className={`chip ${show[k] ? 'on' : ''}`} aria-pressed={show[k]}
+                onClick={() => setShow({ ...show, [k]: !show[k] })}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="map-wrap"><Grid scen={scen} run={run} t={clock.t} color={a.color} /></div>
+
+        <div className="map-wrap"><Grid scen={scen} run={run} t={clock.t} color={a.color} show={show} /></div>
         <Controls clock={clock} maxT={maxT} />
-        <div className="legend dim">
-          <span><b style={{ color: '#67e8f9' }}>◆</b> entrance</span>
-          <span><b style={{ color: '#5dffa0' }}>★</b> inspection point</span>
-          <span><b style={{ color: '#ffd166' }}>☢</b> drifting source</span>
-          <span>background = dose rate (dark → red)</span>
+
+        <div className="legend-block">
+          <DoseLegend />
+          <div className="legend dim">
+            <span className="key"><b style={{ color: '#67e8f9' }}>◆</b> entrance</span>
+            <span className="key"><b style={{ color: '#5dffa0' }}>★</b> inspection point</span>
+            <span className="key"><b style={{ color: '#ffd166' }}>☢</b> drifting source</span>
+            <span className="key"><i className="key-swatch dash" /> sensing window</span>
+            <span className="key"><i className="key-swatch block" /> shield blocked</span>
+          </div>
+          <p className="dim small kbd-hint">Keyboard: <span className="kbd">Space</span> play / pause · <span className="kbd">←</span> <span className="kbd">→</span> step</p>
         </div>
       </section>
 

@@ -5,7 +5,7 @@ import { AGENTS } from '../shared.js'
 const CHARTS = [
   { key: 'train_success', title: 'Training success rate', sub: '100-episode moving average', pct: true, yMin: 0, yMax: 1 },
   { key: 'train_reward', title: 'Training reward', sub: '100-episode moving average' },
-  { key: 'eval_success', title: 'Greedy success on 20 fixed held-out scenarios', sub: 'checked every 100 episodes', pct: true, yMin: 0, yMax: 1 },
+  { key: 'eval_success', title: 'Greedy success on fixed validation scenarios', sub: 'checked every 100 episodes · separate from the 200 test scenarios', pct: true, yMin: 0, yMax: 1 },
 ]
 
 export default function Learning({ curves }) {
