@@ -10,6 +10,9 @@ const CHARTS = [
 
 export default function Learning({ curves }) {
   const [on, setOn] = useState(Object.fromEntries(AGENTS.map((a) => [a.id, true])))
+  const ckpts = curves.baseline.eval_success.x
+  const total = ckpts[ckpts.length - 1]
+  const decayEnd = Math.round(0.6 * total) // epsilon schedule in train.py decays over the first 60%
   return (
     <div className="stack">
       <section className="card">
@@ -22,7 +25,7 @@ export default function Learning({ curves }) {
             </button>
           ))}
         </div>
-        <p className="dim small">Lines show the mean over 3 seeds, shaded bands show ± 1 std. Exploration (epsilon) decays over the first 1200 of 2000 episodes.</p>
+        <p className="dim small">Lines show the mean over 3 seeds, shaded bands show ± 1 std. Exploration (epsilon) decays over the first {decayEnd} of {total} episodes.</p>
       </section>
       <div className="grid2">
         {CHARTS.map((c) => (

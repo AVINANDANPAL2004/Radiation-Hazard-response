@@ -5,6 +5,7 @@ import Results from './components/Results.jsx'
 import Learning from './components/Learning.jsx'
 import Architecture from './components/Architecture.jsx'
 import ScenarioPicker from './components/ScenarioPicker.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { api, EVAL_SEED0 } from './shared.js'
 
 const TABS = [
@@ -50,7 +51,7 @@ export default function App() {
       <header className="top">
         <div>
           <h1><span className="rad">☢</span> Radiation-Zone Autonomous Agent</h1>
-          <p className="dim">CNN + LSTM + LLM + deep reinforcement learning · navigating a drifting radiation field</p>
+          <p className="dim">CNN + LSTM + advisory parser + Double DQN · navigating a drifting radiation field</p>
         </div>
         <span className="badge sim">SIMULATION ONLY</span>
       </header>
@@ -62,6 +63,7 @@ export default function App() {
       </nav>
 
       <main>
+        <ErrorBoundary key={tab}>
         {fatal && (
           <div className="card warnbox">
             <h3>Backend not reachable</h3>
@@ -83,6 +85,7 @@ export default function App() {
         {stats && tab === 'results' && <Results summary={stats.summary} />}
         {stats && tab === 'learning' && <Learning curves={stats.curves} />}
         {tab === 'arch' && <Architecture />}
+        </ErrorBoundary>
       </main>
 
       <footer className="dim small">Agents run live on the backend from the trained models, in a simulated facility. The language component is a rule-based advisory parser, not a real LLM.</footer>

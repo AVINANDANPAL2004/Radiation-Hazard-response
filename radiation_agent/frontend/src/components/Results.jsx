@@ -12,6 +12,7 @@ const ROWS = [
 ]
 
 export default function Results({ summary }) {
+  const adv = summary.llm_cnn_lstm.success.per_seed.map((v) => Math.round(v * 100))
   const best = (r) => {
     const vals = AGENTS.map((a) => summary[a.id][r.k].mean)
     return r.better === 'high' ? Math.max(...vals) : Math.min(...vals)
@@ -75,14 +76,14 @@ export default function Results({ summary }) {
             )
           })}
         </div>
-        <p className="dim small">White dots are individual seeds. The LLM-guided agent varies a lot between seeds (13% to 41%), so its improvement over CNN-LSTM is suggestive, not established.</p>
+        <p className="dim small">White dots are individual seeds. The advisory-guided agent varies a lot between seeds ({Math.min(...adv)}% to {Math.max(...adv)}%), so its improvement over CNN-LSTM is suggestive, not established.</p>
       </section>
 
       <section className="card">
         <h3>How to read this</h3>
         <ul className="plain">
           <li>The <b>simple baseline wins</b> in this compute budget. It gets explicit goal-relative coordinates and learns fastest. The image and recurrent agents were still improving when training stopped at 2000 episodes, so their numbers are a lower bound.</li>
-          <li><b>LLM guidance helped the recurrent agent</b> (about 10% to 26% success), but dose and dose-limit failures did not improve.</li>
+          <li><b>Advisory features helped the recurrent agent</b> (about 10% to 26% success), but dose and dose-limit failures did not improve.</li>
           <li>The <b>LLM is a stand-in</b>: a deterministic parser of the advisory text, not a real language model. Its latency is the parser's, not an LLM's.</li>
           <li>Safety shield is identical for all agents and cannot be overridden. Dose-limit failures come from accumulated dose on longer routes, which the shield does not prevent.</li>
         </ul>

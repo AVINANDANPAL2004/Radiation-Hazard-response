@@ -81,6 +81,11 @@ class RadiationZoneEnv:
 
     # ------------------------------------------------------------------- step
     def step(self, a):
+        # The shield is enforced here as well as in the callers: a disallowed action becomes 'wait'.
+        # Callers that pass the mask they observed (all current ones) see no change in behaviour.
+        overridden = not self.shield_mask()[int(a)]
+        if overridden:
+            a = 4
         dr, dc = ACTIONS[a]
         nr, nc = self.pos[0] + dr, self.pos[1] + dc
         if not (0 <= nr < N and 0 <= nc < N) or self.walls[nr, nc]:
@@ -105,7 +110,7 @@ class RadiationZoneEnv:
         if self.t % 5 == 0:
             self.advisory = self._make_advisory()
         self.obs = self._observe()
-        return reward, done, {"outcome": outcome, "dose": dose}
+        return reward, done, {"outcome": outcome, "dose": dose, "shield_override": overridden}
 
     # ---------------------------------------------------------------- shield
     def shield_mask(self):
