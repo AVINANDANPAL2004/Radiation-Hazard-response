@@ -1,9 +1,12 @@
+# Render Blueprint. The app lives in radiation_agent/, so rootDir points there.
+# Secrets are never stored in this file: sync: false makes Render ask for the value in the dashboard.
 services:
   - type: web
     name: radiation-hazard-agent
     runtime: python
     plan: free
     region: singapore
+    rootDir: radiation_agent
     buildCommand: pip install --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple -r requirements.txt && cd frontend && npm ci && npm run build
     startCommand: python -m uvicorn server:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
@@ -11,3 +14,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
+      - key: RAD_LLM_API_KEY
+        sync: false
