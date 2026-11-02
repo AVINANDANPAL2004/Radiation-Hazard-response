@@ -1,0 +1,21 @@
+[llm_cnn_lstm s0] ep 100 eps=0.92 train_succ=0.00 eval_succ=0.00 t=65s
+[llm_cnn_lstm s0] ep 200 eps=0.84 train_succ=0.00 eval_succ=0.00 t=149s
+[llm_cnn_lstm s0] ep 300 eps=0.76 train_succ=0.01 eval_succ=0.00 t=235s
+[llm_cnn_lstm s0] ep 400 eps=0.68 train_succ=0.01 eval_succ=0.00 t=329s
+[llm_cnn_lstm s0] ep 500 eps=0.60 train_succ=0.02 eval_succ=0.05 t=425s
+[llm_cnn_lstm s0] ep 600 eps=0.53 train_succ=0.01 eval_succ=0.20 t=518s
+[llm_cnn_lstm s0] ep 700 eps=0.45 train_succ=0.03 eval_succ=0.10 t=617s
+[llm_cnn_lstm s0] ep 800 eps=0.37 train_succ=0.04 eval_succ=0.05 t=716s
+[llm_cnn_lstm s0] ep 900 eps=0.29 train_succ=0.06 eval_succ=0.05 t=818s
+[llm_cnn_lstm s0] ep 1000 eps=0.21 train_succ=0.05 eval_succ=0.05 t=910s
+[llm_cnn_lstm s0] ep 1100 eps=0.13 train_succ=0.11 eval_succ=0.10 t=1010s
+[llm_cnn_lstm s0] ep 1200 eps=0.05 train_succ=0.08 eval_succ=0.05 t=1119s
+[llm_cnn_lstm s0] ep 1300 eps=0.05 train_succ=0.11 eval_succ=0.00 t=1220s
+[llm_cnn_lstm s0] ep 1400 eps=0.05 train_succ=0.04 eval_succ=0.10 t=1315s
+[llm_cnn_lstm s0] ep 1500 eps=0.05 train_succ=0.11 eval_succ=0.05 t=1408s
+[llm_cnn_lstm s0] ep 1600 eps=0.05 train_succ=0.15 eval_succ=0.15 t=1501s
+[llm_cnn_lstm s0] ep 1700 eps=0.05 train_succ=0.26 eval_succ=0.15 t=1589s
+[llm_cnn_lstm s0] ep 1800 eps=0.05 train_succ=0.20 eval_succ=0.05 t=1677s
+[llm_cnn_lstm s0] ep 1900 eps=0.05 train_succ=0.19 eval_succ=0.25 t=1769s
+[llm_cnn_lstm s0] ep 2000 eps=0.05 train_succ=0.25 eval_succ=0.20 t=1859s
+FINAL llm_cnn_lstm 0 {"reward": -2.366542445702737, "success": 0.245, "overdose": 0.21, "timeout": 0.545, "exposure": 0.6454570742837896, "travel_steps": 25.448979591836736, "interventions": 23.045, "latency_ms": 1.0898844619348538, "latency_p95_ms": 1.5554480997707287}
